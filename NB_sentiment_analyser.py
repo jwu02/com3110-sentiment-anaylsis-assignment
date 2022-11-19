@@ -55,9 +55,6 @@ def main():
     ADD YOUR CODE HERE
     Create functions and classes, using the best practices of Software Engineering
     """
-    # maps sentiment class to word to its occurrence
-    WORD_OCCURRENCES = {}
-
 
     def load_and_preprocess_data(filename: str) -> tuple:
         """
@@ -95,31 +92,28 @@ def main():
 
         # list of prior probabilities p(s_i) for all sentiment classes
         p_priors = [training_labels.count(c)/len(training_labels) for c in range(number_classes)]
+        likelihoods = {} # dict mapping sentiment class to word to its likelihood p(T|s_i)
 
         for i in range(len(training_data)):
-            likelihoods = [] # list of likelihoods p(T|s_i) for all sentiment classes
+            sample = training_data[i]
+            sentiment_class = training_labels[i]
+            if sentiment_class not in likelihoods:
+                likelihoods[sentiment_class] = {} # dict mapping word to occurrences
+            
+            for w in sample:
+                if w not in likelihoods[sentiment_class]:
+                    likelihoods[sentiment_class][w] = 1
+                else:
+                    likelihoods[sentiment_class][w] += 1
 
-            sentence = training_data[i]
-            sentiment_label = training_labels[i]
+        for sentiment_class in likelihoods:
+            num_features = sum(likelihoods[sentiment_class].values())
+            for w in likelihoods[sentiment_class]:
+                # turn word counts into relative frequency/likelihood
+                likelihoods[sentiment_class][w] /= num_features
             
-            for c in range(number_classes):
-                likelihood = 0
-                for w in sample:
-                    pass
-        
-        # record word occurrences for each sentiment class label 
-        # to use for calculating likelihood
-        sentiment_label = line[2]
-        if sentiment_label not in WORD_OCCURRENCES:
-            WORD_OCCURRENCES[sentiment_label] = {} # dict mapping word to occurrences
-        
-        for w in processed_sentence:
-            if w not in WORD_OCCURRENCES[sentiment_label]:
-                WORD_OCCURRENCES[sentiment_label][w] = 1
-            else:
-                WORD_OCCURRENCES[sentiment_label][w] += 1
-            
-        return (p_priors, WORD_OCCURRENCES)
+        return (p_priors, likelihoods)
+
 
     model = get_model()
 
