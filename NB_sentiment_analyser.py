@@ -5,6 +5,7 @@ NB sentiment analyser.
 Start code.
 """
 import argparse
+import csv
 
 """
 IMPORTANT, modify this part with your details
@@ -13,10 +14,14 @@ USER_ID = "mea20jw" #your unique student ID, i.e. the IDs starting with "acp", "
 
 def parse_args():
     parser=argparse.ArgumentParser(description="A Naive Bayes Sentiment Analyser for the Rotten Tomatoes Movie Reviews dataset")
-    parser.add_argument("training")
-    parser.add_argument("dev")
-    parser.add_argument("test")
-    parser.add_argument("-classes", type=int)
+    # parser.add_argument("training")
+    # parser.add_argument("dev")
+    # parser.add_argument("test")
+    parser.add_argument("-training", default="moviereviews/train.tsv")
+    parser.add_argument("-dev", default="moviereviews/dev.tsv")
+    parser.add_argument("-test", default="moviereviews/test.tsv")
+    # parser.add_argument("-classes", type=int)
+    parser.add_argument("-classes", type=int, default=5, choices=[5, 3])
     parser.add_argument('-features', type=str, default="all_words", choices=["all_words", "features"])
     parser.add_argument('-output_files', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
@@ -50,6 +55,77 @@ def main():
     ADD YOUR CODE HERE
     Create functions and classes, using the best practices of Software Engineering
     """
+    # maps sentiment class to word to its occurrence
+    WORD_OCCURRENCES = {}
+
+
+    def load_and_preprocess_data(filename: str) -> tuple:
+        """
+        Load data from given filename, preprocess it and return
+        a tuple of a list of sentences, and a list of sentiment labels
+        """
+        data = [] # sentences
+        labels = [] # sentiments
+
+        with open(filename) as f:
+            read_data = csv.reader(f, delimiter="\t")
+            next(read_data, None) # skip column headings and ignore return value
+            for line in read_data:
+                processed_sentence = preprocess_sentence(line[1])
+                sentiment_label = line[2]
+                
+                data.append(processed_sentence)
+                labels.append(sentiment_label)
+
+        return (data, labels)
+
+
+    def preprocess_sentence(sentence: str) -> list:
+        sentence = sentence.split("\s")
+
+        return sentence
+
+
+    def get_model() -> tuple: # training
+        # load and preprocess data
+        training_data, training_labels = load_and_preprocess_data(training)
+        # dev_data, dev_labels = load_and_preprocess_data(dev)
+        # different preprocess process for test data file since no sentiment labels
+        # test_data = load_and_preprocess_data(test)
+
+        # list of prior probabilities p(s_i) for all sentiment classes
+        p_priors = [training_labels.count(c)/len(training_labels) for c in range(number_classes)]
+
+        for i in range(len(training_data)):
+            likelihoods = [] # list of likelihoods p(T|s_i) for all sentiment classes
+
+            sentence = training_data[i]
+            sentiment_label = training_labels[i]
+            
+            for c in range(number_classes):
+                likelihood = 0
+                for w in sample:
+                    pass
+        
+        # record word occurrences for each sentiment class label 
+        # to use for calculating likelihood
+        sentiment_label = line[2]
+        if sentiment_label not in WORD_OCCURRENCES:
+            WORD_OCCURRENCES[sentiment_label] = {} # dict mapping word to occurrences
+        
+        for w in processed_sentence:
+            if w not in WORD_OCCURRENCES[sentiment_label]:
+                WORD_OCCURRENCES[sentiment_label][w] = 1
+            else:
+                WORD_OCCURRENCES[sentiment_label][w] += 1
+            
+        return (p_priors, WORD_OCCURRENCES)
+
+    model = get_model()
+
+    
+
+
     
     #You need to change this in order to return your macro-F1 score for the dev set
     f1_score = 0
