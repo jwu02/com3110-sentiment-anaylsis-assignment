@@ -21,10 +21,11 @@ def parse_args():
     parser.add_argument("-dev", default="moviereviews/dev.tsv")
     parser.add_argument("-test", default="moviereviews/test.tsv")
     # parser.add_argument("-classes", type=int)
-    parser.add_argument("-classes", type=int, default=3, choices=[5, 3])
+    parser.add_argument("-classes", type=int, default=5, choices=[5, 3])
     parser.add_argument('-features', type=str, default="all_words", choices=["all_words", "features"])
     parser.add_argument('-output_files', action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
+    # parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=True)
     args=parser.parse_args()
     return args
 
@@ -91,6 +92,7 @@ def main():
 
     def preprocess_sentence(sentence: str) -> list:
         sentence = sentence.split(" ")
+        sentence = [w.lower() for w in sentence]
 
         return sentence
 
@@ -146,7 +148,7 @@ def main():
         return model
 
 
-    def evaulate_dev(data: list) -> list:
+    def evaulate_model(data: list) -> list:
         """
         Given a list of preprocessed data returns a list of labels
         the system has assigned to each data sample
@@ -157,7 +159,7 @@ def main():
         likelihoods = model['likelihoods']
         num_distinct_features = model['num_distinct_features']
         
-        evaluation_labels = []
+        predicted_labels = []
 
         for sample in data:
             sample_posteriors = []
@@ -180,24 +182,60 @@ def main():
                 sample_posteriors.append(priors[sentiment_class] * likelihood)
 
             # assign class label as index of the maxmimum posterior
-            evaluation_labels.append(sample_posteriors.index(max(sample_posteriors)))
+            predicted_labels.append(sample_posteriors.index(max(sample_posteriors)))
 
-        return evaluation_labels
+        return predicted_labels
+
+
+    def evaluate_performance(predicted_labels, actual_labels) -> float:
+        """
+        Evaluate performance of system by simplying counting number of classes
+        got right
+        """
+        # initialise confusion matrix with zeroes
+        confusion_matrix_counts = [[0 for i in range(number_classes)] for j in range(number_classes)]
+
+        correct = 0
+        for i in range(len(predicted_labels)):
+            if predicted_labels[i] == actual_labels[i]:
+                correct += 1
+            
+            
+            confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
+
+        # print confusion matrix if chosen to print it out
+        if confusion_matrix:
+            print("Confusion matrix:")
+            for row in confusion_matrix_counts:
+                print(row)
+
+        print(f"Score: {correct} out of {len(predicted_labels)} correct")
+
+        macro_f1_scores = []
+        for class_label in range(number_classes):
+            # true positive
+            tp = confusion_matrix_counts[class_label][class_label]
+
+            other_classes = list(range(number_classes))
+            other_classes.remove(class_label)
+            
+            # false positives
+            fps = [confusion_matrix_counts[other_class_label][class_label] for other_class_label in other_classes]
+            # false negatives
+            fns = [confusion_matrix_counts[class_label][other_class_label] for other_class_label in other_classes]
+
+            class_macro_f1_score = 2*tp / (2*tp+sum(fps)+sum(fns))
+            macro_f1_scores.append(class_macro_f1_score)
+
+        # return mean of macro-F1 scores
+        return sum(macro_f1_scores) / len(macro_f1_scores)
 
 
     dev_data, dev_labels = load_and_preprocess_data(dev)
-    evaluated_labels = evaulate_dev(dev_data)
+    predicted_labels = evaulate_model(dev_data)
 
-    correct = 0
-    for i in range(len(evaluated_labels)):
-        if evaluated_labels[i] == dev_labels[i]:
-            correct += 1
-    
-    print(f"Score: {correct} out of {len(evaluated_labels)} correct")
-
-    
     #You need to change this in order to return your macro-F1 score for the dev set
-    f1_score = 0
+    f1_score = evaluate_performance(predicted_labels, dev_labels)
     
 
     """
