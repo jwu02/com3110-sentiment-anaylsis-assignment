@@ -74,6 +74,7 @@ def main():
         Load data from given filename and returns a tuple of a list of 
         preprocessed data samples, and a list of sentiment class labels
         """
+        sentence_ids = [] # sentence ids
         data = [] # sentences
         labels = [] # sentiments
 
@@ -88,10 +89,11 @@ def main():
                 else: # number_classes == 3
                     sentiment_label = MERGE_CLASSES_MAPPING[int(line[2])]
                 
+                sentence_ids.append(line[0])
                 data.append(processed_sentence)
                 labels.append(sentiment_label)
         
-        return (data, labels)
+        return (sentence_ids, data, labels)
 
 
     def preprocess_sentence(sentence: str) -> list:
@@ -115,14 +117,14 @@ def main():
         # initialise confusion matrix with zeroes
         confusion_matrix_counts = [[0 for i in range(number_classes)] for j in range(number_classes)]
 
-        # correct = 0
+        correct = 0
         for i in range(len(predicted_labels)):
-            # if predicted_labels[i] == actual_labels[i]:
-            #     correct += 1
+            if predicted_labels[i] == actual_labels[i]:
+                correct += 1
             
             confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
         
-        # print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
+        print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
 
         # print confusion matrix if chosen to print it out
         if confusion_matrix:
@@ -150,15 +152,30 @@ def main():
         return sum(macro_f1_scores) / len(macro_f1_scores)
 
 
-    training_data, training_labels = load_and_preprocess_data(training)
+    def save_results(sentence_ids: list, predicted_labels: list, dataset_name: str) -> None:
+        """
+        Save sentence ids and their corresponding predictions to tsv file
+        """
+        lines_to_write = []
+        lines_to_write.append("SentenceID\tSentiment\n")
+        for i in range(len(sentence_ids)):
+            lines_to_write.append(f"{sentence_ids[i]}\t{predicted_labels[i]}\n")
+
+        output_filename = f'{dataset_name}_predictions_{number_classes}classes_{USER_ID}.tsv'
+        with open(output_filename, 'w') as f:
+            f.writelines(lines_to_write)
+
+
+    training_ids, training_data, training_labels = load_and_preprocess_data(training)
     nb_model = NaiveBayes()
     nb_model.fit(training_data, training_labels)
 
-    dev_data, dev_labels = load_and_preprocess_data(dev)
-    predicted_labels = nb_model.predict(dev_data)
+    dev_ids, dev_data, dev_labels = load_and_preprocess_data(dev)
+    predicted_dev_labels = nb_model.predict(dev_data)
+    save_results(dev_ids, predicted_dev_labels, 'dev')
 
     #You need to change this in order to return your macro-F1 score for the dev set
-    f1_score = evaluate_performance(predicted_labels, dev_labels)
+    f1_score = evaluate_performance(predicted_dev_labels, dev_labels)
     
 
     """
