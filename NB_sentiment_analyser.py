@@ -6,9 +6,10 @@ Start code.
 """
 import argparse
 import csv
-# import nltk
+from naive_bayes import NaiveBayes
+import nltk
 # nltk.download('stopwords')
-# from nltk.corpus import stopwords
+from nltk.corpus import stopwords
 
 """
 IMPORTANT, modify this part with your details
@@ -17,18 +18,17 @@ USER_ID = "mea20jw" #your unique student ID, i.e. the IDs starting with "acp", "
 
 def parse_args():
     parser=argparse.ArgumentParser(description="A Naive Bayes Sentiment Analyser for the Rotten Tomatoes Movie Reviews dataset")
-    # parser.add_argument("training")
-    # parser.add_argument("dev")
-    # parser.add_argument("test")
-    parser.add_argument("-training", default="moviereviews/train.tsv")
-    parser.add_argument("-dev", default="moviereviews/dev.tsv")
-    parser.add_argument("-test", default="moviereviews/test.tsv")
-    # parser.add_argument("-classes", type=int)
-    parser.add_argument("-classes", type=int, default=5, choices=[5, 3])
+    parser.add_argument("training")
+    parser.add_argument("dev")
+    parser.add_argument("test")
+    # parser.add_argument("-training", default="moviereviews/train.tsv")
+    # parser.add_argument("-dev", default="moviereviews/dev.tsv")
+    # parser.add_argument("-test", default="moviereviews/test.tsv")
+    parser.add_argument("-classes", type=int)
+    # parser.add_argument("-classes", type=int, default=5, choices=[5, 3])
     parser.add_argument('-features', type=str, default="all_words", choices=["all_words", "features"])
     parser.add_argument('-output_files', action=argparse.BooleanOptionalAction, default=False)
-    # parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
     args=parser.parse_args()
     return args
 
@@ -68,10 +68,11 @@ def main():
         4: 2, # posititve           -> positive
     }
 
+
     def load_and_preprocess_data(filename: str, test_data=False) -> tuple:
         """
-        Load data from given filename, preprocess it and return
-        a tuple of a list of sentences, and a list of sentiment labels
+        Load data from given filename and returns a tuple of a list of 
+        preprocessed data samples, and a list of sentiment class labels
         """
         data = [] # sentences
         labels = [] # sentiments
@@ -97,118 +98,31 @@ def main():
         sentence = sentence.split(" ")
         sentence = [w.lower() for w in sentence]
 
-        # stopwords_list = set(stopwords.words('english'))
-        # sentence = [w for w in sentence if w in stopwords_list]
+        MY_STOP_LIST = [',', '.', '--', '\'s', '...', '!']
+
+        if features == 'features':
+            stopwords_list = set(stopwords.words('english'))
+            sentence = [w for w in sentence if w not in stopwords_list]
+            sentence = [w for w in sentence if w not in MY_STOP_LIST]
 
         return sentence
 
 
-    def get_model() -> dict: # training
-        """
-        Return a model fitted to the training data with following keys
-        - priors: list of prior probabilities p(s_i) for all sentiment classes
-        - likelihoods: dictionary mapping sentiment class to word to its likelihood p(T|s_i)
-        - num_distinct_features: the vocabulary size of the training data
-        """
-        model = {}
-
-        # load and preprocess data
-        training_data, training_labels = load_and_preprocess_data(training)
-
-        # list of prior probabilities p(s_i) for all sentiment classes
-        priors = [training_labels.count(c)/len(training_labels) for c in range(number_classes)]
-        model['priors'] = priors
-
-        # dict mapping sentiment class to word to its likelihood p(T|s_i)
-        likelihoods = {}
-
-        # obtain word occurrences for each sentiment class first...
-        for i in range(len(training_data)):
-            sample = training_data[i]
-            sentiment_class = training_labels[i]
-            if sentiment_class not in likelihoods:
-                likelihoods[sentiment_class] = {} # dict mapping word to occurrences
-            
-            for w in sample:
-                if w not in likelihoods[sentiment_class]:
-                    likelihoods[sentiment_class][w] = 1
-                else:
-                    likelihoods[sentiment_class][w] += 1
-
-        # ... in order to calculate the likelihood
-        vocabulary = set()
-        for sentiment_class in likelihoods:
-            vocabulary.update(likelihoods[sentiment_class].keys())
-        num_distinct_features = len(vocabulary)
-        model['num_distinct_features'] = num_distinct_features
-
-        for sentiment_class in likelihoods:
-            class_occurrences_sum = sum(likelihoods[sentiment_class].values())
-            for w in likelihoods[sentiment_class]:
-                # turn word counts into likelihood, with Laplace smoothing applied
-                likelihoods[sentiment_class][w] = (likelihoods[sentiment_class][w] + 1) / \
-                                                    (class_occurrences_sum + num_distinct_features)
-        
-        model['likelihoods'] = likelihoods
-
-        return model
-
-
-    def evaluate_model(data: list) -> list:
-        """
-        Given a list of preprocessed data returns a list of labels
-        the system has assigned to each data sample
-        """
-        # instantiate model represented by its parameters
-        model = get_model()
-        priors = model['priors']
-        likelihoods = model['likelihoods']
-        num_distinct_features = model['num_distinct_features']
-        
-        predicted_labels = []
-
-        for sample in data:
-            sample_posteriors = []
-
-            for sentiment_class in range(number_classes):
-                class_occurrences_sum = sum(likelihoods[sentiment_class].values())
-                sample_likelihoods = []
-                for w in sample:
-                    if w in likelihoods[sentiment_class]:
-                        sample_likelihoods.append(likelihoods[sentiment_class][w])
-                    else:
-                        sample_likelihoods.append(1 / (class_occurrences_sum * num_distinct_features))
-                
-                # calculate product of all word likelihoods
-                likelihood = 1
-                for x in sample_likelihoods:
-                    likelihood *= x
-
-                # calculate and record posterior
-                sample_posteriors.append(priors[sentiment_class] * likelihood)
-
-            # assign class label as index of the maxmimum posterior
-            predicted_labels.append(sample_posteriors.index(max(sample_posteriors)))
-
-        return predicted_labels
-
-
     def evaluate_performance(predicted_labels, actual_labels) -> float:
         """
-        Evaluate performance of system by simplying counting number of classes
-        got right
+        Evaluate performance of system by the macro F1 score metric
         """
         # initialise confusion matrix with zeroes
         confusion_matrix_counts = [[0 for i in range(number_classes)] for j in range(number_classes)]
 
-        correct = 0
+        # correct = 0
         for i in range(len(predicted_labels)):
-            if predicted_labels[i] == actual_labels[i]:
-                correct += 1
+            # if predicted_labels[i] == actual_labels[i]:
+            #     correct += 1
             
             confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
         
-        print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
+        # print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
 
         # print confusion matrix if chosen to print it out
         if confusion_matrix:
@@ -236,8 +150,12 @@ def main():
         return sum(macro_f1_scores) / len(macro_f1_scores)
 
 
+    training_data, training_labels = load_and_preprocess_data(training)
+    nb_model = NaiveBayes()
+    nb_model.fit(training_data, training_labels)
+
     dev_data, dev_labels = load_and_preprocess_data(dev)
-    predicted_labels = evaluate_model(dev_data)
+    predicted_labels = nb_model.predict(dev_data)
 
     #You need to change this in order to return your macro-F1 score for the dev set
     f1_score = evaluate_performance(predicted_labels, dev_labels)
