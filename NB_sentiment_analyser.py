@@ -82,16 +82,17 @@ def main():
             read_data = csv.reader(f, delimiter="\t")
             next(read_data, None) # skip column headings and ignore return value
             for line in read_data:
-                processed_sentence = preprocess_sentence(line[1])
-                
-                if number_classes == 5:
-                    sentiment_label = int(line[2])
-                else: # number_classes == 3
-                    sentiment_label = MERGE_CLASSES_MAPPING[int(line[2])]
-                
                 sentence_ids.append(line[0])
+
+                processed_sentence = preprocess_sentence(line[1])
                 data.append(processed_sentence)
-                labels.append(sentiment_label)
+                
+                if not test_data:
+                    if number_classes == 5:
+                        sentiment_label = int(line[2])
+                    else: # number_classes == 3
+                        sentiment_label = MERGE_CLASSES_MAPPING[int(line[2])]
+                    labels.append(sentiment_label)
         
         return (sentence_ids, data, labels)
 
@@ -173,6 +174,10 @@ def main():
     dev_ids, dev_data, dev_labels = load_and_preprocess_data(dev)
     predicted_dev_labels = nb_model.predict(dev_data)
     save_results(dev_ids, predicted_dev_labels, 'dev')
+
+    test_ids, test_data, test_labels = load_and_preprocess_data(test, test_data=True)
+    predicted_test_labels = nb_model.predict(test_data)
+    save_results(test_ids, predicted_test_labels, 'test')
 
     #You need to change this in order to return your macro-F1 score for the dev set
     f1_score = evaluate_performance(predicted_dev_labels, dev_labels)
