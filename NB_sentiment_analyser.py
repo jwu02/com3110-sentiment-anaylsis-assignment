@@ -6,6 +6,9 @@ Start code.
 """
 import argparse
 import csv
+# import nltk
+# nltk.download('stopwords')
+# from nltk.corpus import stopwords
 
 """
 IMPORTANT, modify this part with your details
@@ -94,6 +97,9 @@ def main():
         sentence = sentence.split(" ")
         sentence = [w.lower() for w in sentence]
 
+        # stopwords_list = set(stopwords.words('english'))
+        # sentence = [w for w in sentence if w in stopwords_list]
+
         return sentence
 
 
@@ -148,7 +154,7 @@ def main():
         return model
 
 
-    def evaulate_model(data: list) -> list:
+    def evaluate_model(data: list) -> list:
         """
         Given a list of preprocessed data returns a list of labels
         the system has assigned to each data sample
@@ -200,16 +206,15 @@ def main():
             if predicted_labels[i] == actual_labels[i]:
                 correct += 1
             
-            
             confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
+        
+        print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
 
         # print confusion matrix if chosen to print it out
         if confusion_matrix:
             print("Confusion matrix:")
             for row in confusion_matrix_counts:
                 print(row)
-
-        print(f"Score: {correct} out of {len(predicted_labels)} correct")
 
         macro_f1_scores = []
         for class_label in range(number_classes):
@@ -227,12 +232,12 @@ def main():
             class_macro_f1_score = 2*tp / (2*tp+sum(fps)+sum(fns))
             macro_f1_scores.append(class_macro_f1_score)
 
-        # return mean of macro-F1 scores
+        # return mean of macro-F1 scores across all classes
         return sum(macro_f1_scores) / len(macro_f1_scores)
 
 
     dev_data, dev_labels = load_and_preprocess_data(dev)
-    predicted_labels = evaulate_model(dev_data)
+    predicted_labels = evaluate_model(dev_data)
 
     #You need to change this in order to return your macro-F1 score for the dev set
     f1_score = evaluate_performance(predicted_labels, dev_labels)
