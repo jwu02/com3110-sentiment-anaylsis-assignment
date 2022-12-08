@@ -9,7 +9,8 @@ DEV_FILE = "moviereviews/dev.tsv"
 TEST_FILE = "moviereviews/test.tsv"
 
 NUMBER_CLASSES_CHOICES = [5, 3]
-FEATURES_CHOICES = ['all_words', ' features']
+# FEATURES_CHOICES = ['all_words', 'features']
+FEATURES_CHOICES = ['features']
 OUTPUT_FILES = True
 CONFUSION_MATRIX = True
 

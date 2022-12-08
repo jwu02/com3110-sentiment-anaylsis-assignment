@@ -25,17 +25,27 @@ class Utilities:
 
         self.stopwords_list = set()
         if features == 'features':
-            self.NEGATION_TRIGGER_WORDS = ['n\'t', 'not', 'nor']
-            self.PUNCTUATIONS = [',', '.', '...', '!', '?', '`', '``', '\'', '\'\'', '-', '--', ':', '-lrb-', '-rrb-']
+            self.PUNCTUATIONS = [',', '.', '...', '!', '?', '`', '``', '\'', '\'\'', '-', '--', ':', ';', '-lrb-', '-rrb-']
 
             self.stopwords_list = set(stopwords.words('english'))
+            # # inspect stopwords list
+            # for w in self.stopwords_list:
+            #     print(w)
 
-            # MY_STOP_LIST = [',', '.', '`', '\'', '--', '-', '...', ':', '``', '\'\'', '-lrb-', '-rrb-', 'one']
-            # self.stopwords_list.update(MY_STOP_LIST)
+            # words identified by examining top most frequent words
+            ADDITIONAL_STOPWORDS = []
+            self.stopwords_list.update(ADDITIONAL_STOPWORDS)
             
-            # some tokens like `wasn't`` and `wasn`` was not included in the negation trigger words list
+            # some words in stopwords list are needed for negation, if it's used
+            # some tokens like `wasn't`` and `wasn`` are not included in the negation trigger words list
             # since the way the dataset tokenizes these words into `was` and `n't`
+            self.NEGATION_TRIGGER_WORDS = ['n\'t', 'no', 'not', 'nor', 'neither', 'never', 'barely', 'hardly', 'scarcely', 'seldom', 'rarely']
             self.stopwords_list = self.stopwords_list.difference(self.NEGATION_TRIGGER_WORDS)
+        
+        # for manually examining most frequent terms
+        self.current_filename = None
+        self.document_frequencies = {}
+        self.current_sentence_id = None
 
 
     def load_and_preprocess_data(self, filename: str) -> tuple:
@@ -43,6 +53,8 @@ class Utilities:
         Load data from given filename and returns a tuple of a list of 
         preprocessed data samples, and a list of sentiment class labels
         """
+        self.current_filename = filename
+
         sentence_ids = [] # sentence ids
         data = [] # sentences
         labels = [] # sentiments
@@ -52,8 +64,9 @@ class Utilities:
             next(read_data, None) # skip column headings and ignore return value
             for line in read_data:
                 sentence_ids.append(line[0])
+                self.current_sentence_id = line[0]
 
-                processed_sentence = self.preprocess_sentence(filename, line[1])
+                processed_sentence = self.preprocess_sentence(line[1])
                 data.append(processed_sentence)
                 
                 # not given sentiment class labels for test data, so can't process the column
@@ -67,7 +80,7 @@ class Utilities:
         return (sentence_ids, data, labels)
 
 
-    def preprocess_sentence(self, filename: str, sentence: str) -> list:
+    def preprocess_sentence(self, sentence: str) -> list:
         """
         Basic preproessing step used for both all_words and features
         """
@@ -76,6 +89,14 @@ class Utilities:
 
         if self.features == 'features': # if chosen to use features
             processed_sentence = self.select_features(processed_sentence)
+        
+        # # construct document frequency mapping of training data for inspection
+        # if self.current_filename == 'moviereviews/train.tsv':
+        #     for w in processed_sentence:
+        #         if w in self.document_frequencies:
+        #             self.document_frequencies[w] += 1
+        #         else:
+        #             self.document_frequencies[w] = 1
 
         return processed_sentence
 
@@ -85,11 +106,22 @@ class Utilities:
         Feature selection stage
         """
         selected_features = sentence
-        # selected_features = self.apply_stopwords(selected_features)
-        # selected_features = self.apply_negation(selected_features)
-        selected_features = self.apply_binarization(selected_features)
+        selected_features = self.apply_stopwords(selected_features)
+        selected_features = self.apply_negation(selected_features)
+        # apply binarization after negation, so punctuation don't get removed
+        # selected_features = self.apply_binarization(selected_features)
 
         return selected_features
+    
+
+    def print_document_frequencies(self):
+        """
+        Print top most occurring terms for inspection
+        """
+        for i in range(1000):
+            top = max(self.document_frequencies, key=self.document_frequencies.get)
+            print(f"{top}\t{self.document_frequencies[top]}")
+            del self.document_frequencies[top]
     
 
     def apply_stopwords(self, sentence: list) -> list:
@@ -103,7 +135,8 @@ class Utilities:
             # if w in stopwords_list or ('\'' in w and w != 'n\'t'):
             if w in self.stopwords_list:
                 continue
-            selected_features.append(w)
+            else:
+                selected_features.append(w)
         
         return selected_features
     
@@ -113,18 +146,30 @@ class Utilities:
 
         negate = False
         for w in sentence:
-            if w in self.NEGATION_TRIGGER_WORDS: # when encounter negation trigger word
+            # start negating after encountering negation trigger word
+            if not negate and w in self.NEGATION_TRIGGER_WORDS:
                 negate = True
-            if negate and w in self.PUNCTUATIONS: # negate every word upto some punctuation
-                negate = False
-            
-            if negate: # negate by appending 'NOT_' to a word
-                negated_sentence.append(f'NOT_{w}')
-
-            # an additional stopwords list but for punctuations retained till here
-            # to make use of negation with punctuations
-            if w not in self.PUNCTUATIONS:
                 negated_sentence.append(w)
+                continue
+
+            # stop negating at punctuations, also checks for double negation
+            if negate and (w in self.PUNCTUATIONS or w in self.NEGATION_TRIGGER_WORDS):
+                negate = False
+
+            # if token not punctuation nor have apostrophe, append word 
+            if not (w in self.PUNCTUATIONS or ('\'' in w and w != 'n\'t')):
+                if negate: # negate by appending 'NOT_' to a word
+                    negated_sentence.append(f'NOT_{w}')
+                    continue
+                else:
+                    # an additional stopwords list but for punctuations, which are retained till 
+                    # here so we can make use of negation
+                    # '\'' = ['n\'t', '\'ve', '\'s', '\'re', '\'ll', '\'m', ...]
+                    negated_sentence.append(w)
+        
+        # # check if negation modifies sentence of features accordingly
+        # if self.current_sentence_id == '1872':
+        #     print(negated_sentence)
         
         return negated_sentence
 
@@ -134,12 +179,6 @@ class Utilities:
         Binarization removes multiple occurrences of each word in each sentence, 
         which is basically taking the set of the list
         """
-        # if filename == 'moviereviews/train.tsv':
-        #     # construct document frequency mapping for inspection
-        #     if w in document_frequencies:
-        #         document_frequencies[w] += 1
-        #     else:
-        #         document_frequencies[w] = 0
         return list(set(sentence))
 
 
@@ -158,7 +197,7 @@ class Utilities:
             
             confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
         
-        print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
+        # print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
 
         # print confusion matrix if chosen to print it out
         if self.confusion_matrix:

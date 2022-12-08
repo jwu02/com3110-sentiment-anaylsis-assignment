@@ -59,13 +59,7 @@ def main():
     nb_model = NaiveBayes()
     nb_model.fit(training_data, training_labels)
 
-    # # def get_document_frequency_mapping
-    # document_frequencies = {}
-    # # print top most occurring terms
-    # for i in range(50):
-    #     top = max(document_frequencies, key=document_frequencies.get)
-    #     print(f"{top}\t{document_frequencies[top]}")
-    #     del document_frequencies[top]
+    # utilities.print_document_frequencies()
 
     # dev dataset
     dev_ids, dev_data, dev_labels = utilities.load_and_preprocess_data(dev)
