@@ -39,13 +39,15 @@ class NaiveBayes():
                 else:
                     self.likelihoods[sentiment_class][w] += 1
 
-        # ... in order to calculate the likelihood
+        # count number of distinct words/tokens in entire training corpus
         vocabulary = set()
         for sentiment_class in self.likelihoods:
             vocabulary.update(self.likelihoods[sentiment_class].keys())
         self.num_distinct_features = len(vocabulary)
 
+        # ... in order to calculate the likelihood
         for sentiment_class in self.likelihoods:
+            # counts all words/features of for a class (include duplicates)
             class_occurrences_sum = sum(self.likelihoods[sentiment_class].values())
             for w in self.likelihoods[sentiment_class]:
                 # turn word counts into likelihood, with Laplace smoothing applied
