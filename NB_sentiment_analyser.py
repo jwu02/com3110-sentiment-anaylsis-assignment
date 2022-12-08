@@ -5,11 +5,8 @@ NB sentiment analyser.
 Start code.
 """
 import argparse
-import csv
 from naive_bayes import NaiveBayes
-import nltk
-# nltk.download('stopwords')
-from nltk.corpus import stopwords
+from utilities import Utilities
 
 """
 IMPORTANT, modify this part with your details
@@ -21,11 +18,7 @@ def parse_args():
     parser.add_argument("training")
     parser.add_argument("dev")
     parser.add_argument("test")
-    # parser.add_argument("-training", default="moviereviews/train.tsv")
-    # parser.add_argument("-dev", default="moviereviews/dev.tsv")
-    # parser.add_argument("-test", default="moviereviews/test.tsv")
     parser.add_argument("-classes", type=int)
-    # parser.add_argument("-classes", type=int, default=5, choices=[5, 3])
     parser.add_argument('-features', type=str, default="all_words", choices=["all_words", "features"])
     parser.add_argument('-output_files', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('-confusion_matrix', action=argparse.BooleanOptionalAction, default=False)
@@ -59,128 +52,35 @@ def main():
     ADD YOUR CODE HERE
     Create functions and classes, using the best practices of Software Engineering
     """
+    utilities = Utilities(USER_ID, number_classes, features, confusion_matrix)
 
-    MERGE_CLASSES_MAPPING = {
-        0: 0, # negative            -> negative
-        1: 0, # somewhat negative   -> negative
-        2: 1, # neutral             -> neutral
-        3: 2, # somewhat positive   -> positive
-        4: 2, # posititve           -> positive
-    }
-
-
-    def load_and_preprocess_data(filename: str, test_data=False) -> tuple:
-        """
-        Load data from given filename and returns a tuple of a list of 
-        preprocessed data samples, and a list of sentiment class labels
-        """
-        sentence_ids = [] # sentence ids
-        data = [] # sentences
-        labels = [] # sentiments
-
-        with open(filename) as f:
-            read_data = csv.reader(f, delimiter="\t")
-            next(read_data, None) # skip column headings and ignore return value
-            for line in read_data:
-                sentence_ids.append(line[0])
-
-                processed_sentence = preprocess_sentence(line[1])
-                data.append(processed_sentence)
-                
-                if not test_data:
-                    if number_classes == 5:
-                        sentiment_label = int(line[2])
-                    else: # number_classes == 3
-                        sentiment_label = MERGE_CLASSES_MAPPING[int(line[2])]
-                    labels.append(sentiment_label)
-        
-        return (sentence_ids, data, labels)
-
-
-    def preprocess_sentence(sentence: str) -> list:
-        sentence = sentence.split(" ")
-        sentence = [w.lower() for w in sentence]
-
-        MY_STOP_LIST = [',', '.', '--', '\'s', '...', '!']
-
-        if features == 'features':
-            stopwords_list = set(stopwords.words('english'))
-            sentence = [w for w in sentence if w not in stopwords_list]
-            sentence = [w for w in sentence if w not in MY_STOP_LIST]
-
-        return sentence
-
-
-    def evaluate_performance(predicted_labels, actual_labels) -> float:
-        """
-        Evaluate performance of system by the macro F1 score metric
-        """
-        # initialise confusion matrix with zeroes
-        confusion_matrix_counts = [[0 for i in range(number_classes)] for j in range(number_classes)]
-
-        correct = 0
-        for i in range(len(predicted_labels)):
-            if predicted_labels[i] == actual_labels[i]:
-                correct += 1
-            
-            confusion_matrix_counts[actual_labels[i]][predicted_labels[i]] += 1
-        
-        print(f"Score: {correct} out of {len(predicted_labels)} correct. (REMOVE PRINT LATER)")
-
-        # print confusion matrix if chosen to print it out
-        if confusion_matrix:
-            print("Confusion matrix:")
-            for row in confusion_matrix_counts:
-                print(row)
-
-        macro_f1_scores = []
-        for class_label in range(number_classes):
-            # true positive
-            tp = confusion_matrix_counts[class_label][class_label]
-
-            other_classes = list(range(number_classes))
-            other_classes.remove(class_label)
-            
-            # false positives
-            fps = [confusion_matrix_counts[other_class_label][class_label] for other_class_label in other_classes]
-            # false negatives
-            fns = [confusion_matrix_counts[class_label][other_class_label] for other_class_label in other_classes]
-
-            class_macro_f1_score = 2*tp / (2*tp+sum(fps)+sum(fns))
-            macro_f1_scores.append(class_macro_f1_score)
-
-        # return mean of macro-F1 scores across all classes
-        return sum(macro_f1_scores) / len(macro_f1_scores)
-
-
-    def save_results(sentence_ids: list, predicted_labels: list, dataset_name: str) -> None:
-        """
-        Save sentence ids and their corresponding predictions to tsv file
-        """
-        lines_to_write = []
-        lines_to_write.append("SentenceID\tSentiment\n")
-        for i in range(len(sentence_ids)):
-            lines_to_write.append(f"{sentence_ids[i]}\t{predicted_labels[i]}\n")
-
-        output_filename = f'{dataset_name}_predictions_{number_classes}classes_{USER_ID}.tsv'
-        with open(output_filename, 'w') as f:
-            f.writelines(lines_to_write)
-
-
-    training_ids, training_data, training_labels = load_and_preprocess_data(training)
+    # training dataset
+    training_ids, training_data, training_labels = utilities.load_and_preprocess_data(training)
     nb_model = NaiveBayes()
     nb_model.fit(training_data, training_labels)
 
-    dev_ids, dev_data, dev_labels = load_and_preprocess_data(dev)
-    predicted_dev_labels = nb_model.predict(dev_data)
-    save_results(dev_ids, predicted_dev_labels, 'dev')
+    # # def get_document_frequency_mapping
+    # document_frequencies = {}
+    # # print top most occurring terms
+    # for i in range(50):
+    #     top = max(document_frequencies, key=document_frequencies.get)
+    #     print(f"{top}\t{document_frequencies[top]}")
+    #     del document_frequencies[top]
 
-    test_ids, test_data, test_labels = load_and_preprocess_data(test, test_data=True)
+    # dev dataset
+    dev_ids, dev_data, dev_labels = utilities.load_and_preprocess_data(dev)
+    predicted_dev_labels = nb_model.predict(dev_data)
+
+    # test dataset
+    test_ids, test_data, test_labels = utilities.load_and_preprocess_data(test)
     predicted_test_labels = nb_model.predict(test_data)
-    save_results(test_ids, predicted_test_labels, 'test')
+
+    if output_files:
+        utilities.save_predictions(dev_ids, predicted_dev_labels, 'dev')
+        utilities.save_predictions(test_ids, predicted_test_labels, 'test')
 
     #You need to change this in order to return your macro-F1 score for the dev set
-    f1_score = evaluate_performance(predicted_dev_labels, dev_labels)
+    f1_score = utilities.evaluate_performance(predicted_dev_labels, dev_labels)
     
 
     """
