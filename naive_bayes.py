@@ -1,3 +1,5 @@
+import math
+
 class NaiveBayes():
     """
     Naive Bayes model for sentiment analysis
@@ -13,12 +15,17 @@ class NaiveBayes():
         self.likelihoods = {}
         self.num_distinct_features = 0 # vocabulary size of training data
 
+        # similar to document frequencies, but number of classes word appears in
+        # words appear in all classes will be weighed less
+        self.class_frequencies = {}
+
 
     def fit(self, training_data: list, training_labels: list) -> None:
         """
         Fit the model to the supplied training data to obtain the model parameters
         """
-        self.number_classes = len(set(training_labels))
+        class_labels = set(training_labels)
+        self.number_classes = len(class_labels)
 
         # list of prior probabilities p(s_i) for all sentiment classes
         self.priors = [training_labels.count(c)/len(training_labels) for c in range(self.number_classes)]
@@ -38,6 +45,22 @@ class NaiveBayes():
                     self.likelihoods[sentiment_class][w] = 1
                 else:
                     self.likelihoods[sentiment_class][w] += 1
+
+        # # construct class frequencies dictionary
+        # # which counts number of classes each term, that occurs, appears in
+        # for c in self.likelihoods:
+        #     for w in self.likelihoods[c]:
+        #         if w in self.class_frequencies:
+        #             self.class_frequencies[w] += 1
+        #         else:
+        #             self.class_frequencies[w] = 1
+        
+        # # modify self.likelihoods dictionary which currently contains class frequencies for terms
+        # for c in self.likelihoods:
+        #     for w in self.likelihoods[c]:
+        #         # class frequency of term x its inverse class frequency
+        #         self.likelihoods[c][w] *= math.log(self.number_classes/self.class_frequencies[w])
+        #         # print(f"{w}\t{self.likelihoods[c][w]}")
 
         # count number of distinct words/tokens in entire training corpus
         vocabulary = set()

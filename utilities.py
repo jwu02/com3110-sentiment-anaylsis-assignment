@@ -32,9 +32,9 @@ class Utilities:
             # for w in self.stopwords_list:
             #     print(w)
 
-            # words identified by examining top most frequent words
-            ADDITIONAL_STOPWORDS = []
-            self.stopwords_list.update(ADDITIONAL_STOPWORDS)
+            # # words identified by examining top most frequent words
+            # ADDITIONAL_STOPWORDS = []
+            # self.stopwords_list.update(ADDITIONAL_STOPWORDS)
             
             # some words in stopwords list are needed for negation, if it's used
             # some tokens like `wasn't`` and `wasn`` are not included in the negation trigger words list
@@ -44,6 +44,7 @@ class Utilities:
         
         # for manually examining most frequent terms
         self.current_filename = None
+        self.term_frequencies = {}
         self.document_frequencies = {}
         self.current_sentence_id = None
 
@@ -90,13 +91,13 @@ class Utilities:
         if self.features == 'features': # if chosen to use features
             processed_sentence = self.select_features(processed_sentence)
         
-        # # construct document frequency mapping of training data for inspection
-        # if self.current_filename == 'moviereviews/train.tsv':
-        #     for w in processed_sentence:
-        #         if w in self.document_frequencies:
-        #             self.document_frequencies[w] += 1
-        #         else:
-        #             self.document_frequencies[w] = 1
+        # construct document frequency mapping of training data for inspection
+        if self.current_filename == 'moviereviews/train.tsv':
+            for w in processed_sentence:
+                if w in self.term_frequencies:
+                    self.term_frequencies[w] += 1
+                else:
+                    self.term_frequencies[w] = 1
 
         return processed_sentence
 
@@ -119,10 +120,10 @@ class Utilities:
         Print top most occurring terms for inspection
         """
         for i in range(1000):
-            top = max(self.document_frequencies, key=self.document_frequencies.get)
-            print(f"{top}\t{self.document_frequencies[top]}")
-            del self.document_frequencies[top]
-    
+            top = max(self.term_frequencies, key=self.term_frequencies.get)
+            print(f"{top}\t{self.term_frequencies[top]}")
+            del self.term_frequencies[top]
+
 
     def apply_stopwords(self, sentence: list) -> list:
         """
